@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "solo-orchestrator",
+  "displayName": "Solo Orchestrator",
+  "version": "1.0.0",
+  "description": "Orchestrate multi-agent coding work through the Solo (soloterm.com) MCP server: plan into a scratchpad, split into todos with blockers, spawn cross-lab workers, monitor with idle timers, integrate one lane at a time, and ship a merge request.",
+  "author": {
+    "name": "Devon Garbalosa",
+    "email": "devon@metacomet.tech",
+    "url": "https://github.com/DGarbs51"
+  },
+  "homepage": "https://github.com/DGarbs51/solo-orchestrator-skill",
+  "repository": "https://github.com/DGarbs51/solo-orchestrator-skill",
+  "license": "MIT",
+  "keywords": [
+    "solo",
+    "soloterm",
+    "mcp",
+    "orchestration",
+    "multi-agent",
+    "subagents",
+    "workflow"
+  ]
+}
