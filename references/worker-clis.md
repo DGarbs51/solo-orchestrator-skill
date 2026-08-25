@@ -1,7 +1,9 @@
 # Worker CLI cheat sheet — configuring mode, model, and thinking
 
 **Verification status:** re-verified 2026-08-08 against the `--help` output of
-the installed binaries, at these versions:
+the installed binaries, at these versions. Model-catalog discovery (the
+"Discovering the live model catalog" section) was re-verified 2026-08-24 at:
+claude 2.1.243, opencode 1.18.22, codex 0.149.0, agent 2026.08.11, kimi 0.38.0.
 
 | Tool | Command | Version verified | Solo MCP |
 |---|---|---|---|
@@ -208,6 +210,26 @@ variants in Solo's Settings → Agents. Which tools exist at all comes from
 
 ## Discovering the live model catalog
 
+**Every tool's lineup goes stale — including Claude Code's and Codex's.** An
+earlier revision of this file exempted those two ("small stable alias set — no
+caching needed"). That was wrong in practice: leads kept routing lanes to
+remembered model names — older Opus builds, retired `gpt-5.3-codex` variants —
+that the providers no longer serve. Evidence from the 2026-08-24 re-check:
+
+- The Codex catalog ships **deprecation notices inside the catalog itself**:
+  `gpt-5.4` → "Codex now uses GPT-5.6 Terra in place of GPT-5.4",
+  `gpt-5.4-mini` → GPT-5.6 Luna. The `gpt-5.3-codex` line is gone entirely
+  (only `gpt-5.3-codex-spark` remains, marked `supported_in_api: false`).
+- Claude Code auto-remaps legacy full names with a warning —
+  `⚠ claude-opus-4-1 is automatically remapped to Opus 5 (the latest Opus)` —
+  and hard-errors at launch on names it doesn't recognize at all.
+- Cursor still serves `gpt-5.3-codex-*` even though the Codex CLI doesn't:
+  **one tool's catalog says nothing about another's, even for the same lab.**
+
+**The rule: never route a lane to a full model name from memory.** A model
+name is valid only if it appears in a fresh catalog (commands below) or is one
+of Claude Code's never-stale aliases (`fable`/`opus`/`sonnet`).
+
 Multi-model harnesses re-shuffle their lineups often — but not minute-to-minute,
 so **cache the catalog in a Solo scratchpad named `model-catalog` with a 2-hour
 TTL** instead of re-listing on every run. Protocol:
@@ -219,7 +241,7 @@ TTL** instead of re-listing on every run. Protocol:
 
 ```markdown
 # Model Catalog
-Last refreshed: 2026-08-08T14:32:00Z
+Last refreshed: 2026-08-24T14:32:00Z
 
 ## OpenCode (`opencode models`)
 opencode/deepseek-v4-flash-free   ← free tier
@@ -231,6 +253,15 @@ anthropic/claude-sonnet-4-5
 
 ## Kimi (`kimi provider list`)
 ...
+
+## Codex (`codex debug models`, filtered — see jq line)
+gpt-5.6-sol     current   effort low default, up to ultra
+gpt-5.4         DEPRECATED → gpt-5.6-terra   ← do not route
+...
+
+## Claude Code (no shell catalog)
+fable / opus / sonnet   ← aliases track the latest of each tier; route by alias
+full names: verify in a live session's /model picker before pinning one
 ```
 
 Catalog commands (all verified on installed binaries):
@@ -240,8 +271,36 @@ Catalog commands (all verified on installed binaries):
 | OpenCode | `opencode models [provider]` | Works even unauthenticated; ~87 models. Free-tier models carry a `-free` suffix — currently `opencode/deepseek-v4-flash-free`, `laguna-s-2.1-free`, `ling-3.0-flash-free`, `mimo-v2.5-free`, `nemotron-3-ultra-free`, `north-mini-code-free` — prime candidates for docs/mechanical lanes |
 | Cursor | `agent models` or `agent --list-models` | Shows what your subscription routes. **Effort is baked into the model name** (`-low`/`-medium`/`-high`/`-xhigh`, plus `-fast` variants), e.g. `claude-opus-5-thinking-xhigh`. `auto` is the default |
 | Kimi | `kimi provider list [--json]` | Lists configured providers and model aliases; `kimi provider catalog` imports more from models.dev. Current aliases: `kimi-code/k3` (default), `k3-256k`, `kimi-for-coding` (K2.7), `kimi-for-coding-highspeed` |
-| Claude Code | in-session `/model` picker | Small stable alias set (`fable`/`opus`/`sonnet`) — no caching needed |
-| Codex | in-session `/model` picker | Model + reasoning effort chosen together — no caching needed |
+| Codex | `codex debug models` (shell, JSON) | The authoritative Codex catalog, including deprecations. ⚠ Raw output is ~300 KB (it embeds full prompt templates) — **never dump it; always filter** with the jq line below. Read three fields per entry: `visibility` (`hide` rows aren't pickable), `upgrade` (non-null = deprecated, with the migration target in `upgrade.model`), `supported_in_api` (false = listed but not routable). Model + reasoning effort are still chosen together — each entry lists its supported efforts |
+| Claude Code | no shell catalog — aliases + in-session `/model` picker | Aliases `fable`/`opus`/`sonnet` always resolve to the latest model of each tier — **prefer them; they cannot go stale**. Pinning a full name (e.g. `claude-fable-5`) is only safe after verifying it in a live session's `/model` picker. Legacy full names auto-remap to the latest equivalent with a ⚠ warning (`CLAUDE_CODE_DISABLE_LEGACY_MODEL_REMAP=1` keeps the literal name); unrecognized names error at launch |
+
+The Codex filter (verified 2026-08-24 against codex-cli 0.149.0):
+
+```bash
+codex debug models | jq -r '.models[]
+  | select(.visibility == "list")
+  | [.slug, .default_reasoning_level,
+     ([.supported_reasoning_levels[].effort] | join("/")),
+     (if .upgrade then "DEPRECATED -> " + (.upgrade.model // "?") else "current" end)
+     + (if .supported_in_api then "" else " (no-api)" end)]
+  | @tsv' | column -t -s$'\t'
+```
+
+Sample output, so you know what healthy looks like:
+
+```
+gpt-5.6-sol          low     low/medium/high/xhigh/max/ultra  current
+gpt-5.6-terra        medium  low/medium/high/xhigh/max/ultra  current
+gpt-5.6-luna         medium  low/medium/high/xhigh/max        current
+gpt-5.5              medium  low/medium/high/xhigh            current
+gpt-5.4              medium  low/medium/high/xhigh            DEPRECATED -> gpt-5.6-terra
+gpt-5.4-mini         medium  low/medium/high/xhigh            DEPRECATED -> gpt-5.6-luna
+gpt-5.3-codex-spark  high    low/medium/high/xhigh            current (no-api)
+```
+
+Treat `DEPRECATED` and `no-api` rows as **do-not-route** — record them in the
+scratchpad anyway, so a stale habit ("route reviews to gpt-5.4") gets corrected
+by the catalog instead of failing in a spawned worker.
 
 Cost is part of routing: a free model on a low-blast-radius lane (docs,
 mechanical edits) where the acceptance check catches mistakes cheaply is
@@ -259,7 +318,13 @@ OpenAI-authored lanes. **Solo MCP: verified.** No startup gate observed.
 
 **In-session (preferred):**
 - Model — `/model` shows current and opens the picker; aliases: `fable`,
-  `opus`, `sonnet`, or a full model name (e.g. `claude-fable-5`).
+  `opus`, `sonnet`, or a full model name (e.g. `claude-fable-5`). **Route by
+  alias** — aliases track the latest model of each tier and cannot go stale.
+  Verified 2026-08-24 on 2.1.243: a legacy full name (e.g. `claude-opus-4-1`)
+  is silently remapped to the latest equivalent with only a ⚠ warning, and an
+  unrecognized name errors at launch — so a stale pinned name either moves the
+  lane to a model you didn't choose or kills the spawn. Details in
+  "Discovering the live model catalog".
 - Mode — status line shows the permission mode; Shift+Tab cycles, or manage via
   `/permissions`.
 - Thinking — effort level per session; "think hard"/"ultrathink" in the prompt
@@ -328,6 +393,12 @@ of this directory?"). Send Enter (`[13]`) to accept before doing anything else.
 - Model + reasoning — `/model` selects both together in one picker.
 - Mode — `/approvals` sets the approval policy.
 - Persists in `~/.codex/config.toml` — whatever the last session chose is live.
+- Catalog from the shell — `codex debug models` renders the live catalog as
+  JSON, **including deprecation notices** (verified 2026-08-24 on 0.149.0).
+  ⚠ ~300 KB raw — always filter; the jq line and do-not-route rules are in
+  "Discovering the live model catalog". Check it before pinning a Codex model:
+  the lineup retires fast (`gpt-5.4`/`-mini` are deprecated in-catalog, the
+  `gpt-5.3-codex` line is no longer served).
 
 **Launch fallback (verified flags):**
 - `-m/--model <name>`; reasoning via `-c model_reasoning_effort="high"`

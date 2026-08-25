@@ -104,9 +104,11 @@ view, or to orient before a long orchestration.
       └───────────┴─────┬─────┴────────────┴─────────────┘
                         ▼
   ┌── STEP 3 · MODEL CATALOG ───────────────────────────────────────────┐
-  │  scratchpad "model-catalog", 2-hour TTL                             │
-  │  fresh? ──> route from cache      stale? ──> agent models /         │
-  │                                     opencode models / kimi provider │
+  │  scratchpad "model-catalog", 2-hour TTL — covers ALL FIVE tools     │
+  │  fresh? ──> route from cache   stale? ──> refresh all five:         │
+  │    agent models / opencode models / kimi provider list /            │
+  │    codex debug models (jq-filtered; DEPRECATED = do-not-route)      │
+  │  claude: route by ALIAS (fable/opus/sonnet); NEVER names from memory│
   └────────────────────────────┬────────────────────────────────────────┘
                                ▼
   ┌── STEP 4 · PICK: fit ─> cost ─> evidence ───────────────────────────┐

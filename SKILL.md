@@ -314,14 +314,26 @@ Keep one project scratchpad named `model-catalog`:
 - **Read it first** (`scratchpad_find`). If it exists and its
   `Last refreshed:` line is under 2 hours old (compare against `date -u`),
   route from the cached catalog — do not re-run the listing commands.
-- **If missing or stale (> 2 hours), refresh**: run `agent models` (or
-  `--list-models`), `opencode models`, and `kimi provider list`, then rewrite
-  the scratchpad with the results, pricing signals (OpenCode marks free-tier
-  models with a `-free` suffix), and a fresh `Last refreshed: <UTC ISO
-  timestamp>` line at the top. Format in `references/worker-clis.md`.
+- **If missing or stale (> 2 hours), refresh — for all five tools**: run
+  `agent models` (or `--list-models`), `opencode models`, `kimi provider
+  list`, and `codex debug models` (filter the JSON — the raw output is ~300 KB;
+  the jq line is in `references/worker-clis.md`). Claude Code has no shell
+  catalog: record the alias rule (`fable`/`opus`/`sonnet` always resolve to
+  the latest of each tier) and verify any pinned full model name in a live
+  session's `/model` picker. Then rewrite the scratchpad with the results,
+  pricing signals (OpenCode marks free-tier models with a `-free` suffix),
+  deprecation notices (the Codex catalog marks retiring models with an
+  `upgrade` migration target — record them as do-not-route), and a fresh
+  `Last refreshed: <UTC ISO timestamp>` line at the top. Format in
+  `references/worker-clis.md`.
 
-Claude Code and Codex use small, stable in-session `/model` pickers — no
-caching needed for those.
+**Never route a lane to a full model name from memory — Claude and Codex
+included.** Their lineups retire like everyone else's: Codex currently
+deprecates `gpt-5.4`/`gpt-5.4-mini` in-catalog and no longer serves the
+`gpt-5.3-codex` line, and Claude Code silently remaps legacy names like
+`claude-opus-4-1` to the latest Opus. A model name is valid only if it is in
+the fresh catalog or is one of Claude Code's aliases — and one tool's catalog
+says nothing about another's, even for the same lab.
 
 **Step 4 — choose the specific model: fit, then cost, then evidence.**
 
