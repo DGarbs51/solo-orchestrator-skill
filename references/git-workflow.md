@@ -103,6 +103,12 @@ records readable from `git log` alone.
 
 Push after each integrated lane so the remote branch tracks real progress.
 
+After the ff-merge (or equivalent) lands on the feature branch, remove the
+lane worktree and delete the local `lane/<x>` branch. Dead worktrees accumulate
+`vendor/` and `node_modules/` and confuse the next dispatch. Keep
+`.worktrees/prompts/<lane>.md`. Do not remove a worktree while its worker is
+still running.
+
 ## The merge request (Phase 8)
 
 Assemble the PR body from the durable artifacts — scratchpad plan, decisions

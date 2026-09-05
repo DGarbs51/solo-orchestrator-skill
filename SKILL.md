@@ -175,8 +175,19 @@ versions expose this as `spawn_agent` — trust the live tool list). Rules:
 
 A spawned worker **does not inherit your judgment, context, or conversation** —
 it may not even be from your lab. Treat every worker as a brand-new collaborator
-who knows nothing: send a self-contained prompt with a bounded task and a
-concrete handoff, using this template:
+who knows nothing: give it a self-contained prompt with a bounded task and a
+concrete handoff.
+
+**Never paste the full lane spec through `send_input`.** Claude Code's TUI
+drops the *start* of a long paste; the worker sees only the tail (observed Run 2
+and Run 3 STR-49/STR-50). Write the template below to
+`.worktrees/prompts/<lane>.md`, then `send_input` a **short pointer** (absolute
+path to that file, worktree, todo id, "do not commit"). Put the file path at
+the **end** of even that short message. Do not prepend Solo
+`agent_instructions` onto the paste — `SOLO_PROCESS_ID` is already in the
+worker env; tell it to call `whoami()`.
+
+Use this template **in the prompt file**, not in `send_input`:
 
 ```markdown
 You are a worker agent on lane: <lane name>.
@@ -244,6 +255,10 @@ Never merge every result mentally at once. For each completed lane:
    not make.
 6. Update the lane's todo with files changed, tests run, and remaining risk,
    then unblock dependents or dispatch the next worker.
+7. **Remove the finished lane worktree** (`git worktree remove`) and delete the
+   local `lane/<x>` branch once it is on the feature branch. Keep
+   `.worktrees/prompts/` (those files are the audit trail). Never remove a
+   worktree a running worker still owns.
 
 ## Phase 7 — Capture handoffs, then close
 
@@ -259,7 +274,8 @@ only place coordination state lives. Before closing any worker:
 Then close finished workers whose handoffs are captured. Keep any worker still
 producing useful work. If a worker has descendant subagents, inspect them before
 deciding whether to close the whole group. Closing does not undo filesystem
-edits — review partial changes before removing a mid-task agent.
+edits — review partial changes before removing a mid-task agent. After close,
+remove that worker's worktree if the lane is already integrated.
 
 ## Phase 8 — Ship: the merge request
 
