@@ -9,6 +9,9 @@ merges). Verified against `gh` 2.97.0 and git 2.50.1 on 2026-08-08.
 
 ## Branching (Phase 2)
 
+Create or publish the implementation branch only after the user has approved
+the displayed plan in SKILL.md Phase 2.
+
 Feature work happens one feature at a time, on its own branch — never on the
 default branch. Unless the user directed otherwise:
 
@@ -19,11 +22,9 @@ git push -u origin feature/<short-slug>
 
 Use `feature/<slug>` for features and `fix/<slug>` for bug work.
 
-Publish to GitHub **before any edits exist**. An early remote branch gives the
-run a durable anchor: workers and worktrees have something to base on, nothing
-is lost to a local mishap, and the Phase 8 merge request has a home from
-minute one. Record the branch name in the plan scratchpad — it is part of the
-shared context every worker reads.
+Publish after plan approval and before implementation. Record the integration
+branch in the plan scratchpad. Pushing an empty branch establishes the remote
+tracking branch; only later pushed commits preserve implementation work.
 
 If the repo has no remote, `git push` will fail. Don't improvise a remote —
 say so, keep the branch local, and note it in the plan scratchpad so Phase 8
@@ -31,9 +32,10 @@ takes the no-`gh` fallback.
 
 ### Bypass: stay on main
 
-**When the user explicitly says to make this change directly on `main`, stay on
-`main`.** Do not create a feature branch, do not move off the branch you are
-on, and do not open a PR at Phase 8.
+**When the user explicitly selects `main` as the integration branch, use it.**
+Safely switch to the agreed branch if necessary without overwriting local work.
+Do not create a feature branch or open a PR at Phase 8. Lane branches still
+provide worker isolation.
 
 This triggers **only on an explicit instruction** — "do this on main", "just
 commit to main", "no branch for this", "straight to main". It is never inferred
@@ -48,16 +50,17 @@ What changes:
 
 | | Normal | Stay-on-main |
 |---|---|---|
-| Phase 2 | `git checkout -b feature/<slug>` + `git push -u` | stay put; no branch created |
+| Phase 2 | `git checkout -b feature/<slug>` + `git push -u` | use agreed main; no feature branch |
 | Plan scratchpad | records the feature branch | records `Branch: main (stay-on-main, user-directed)` |
 | Phase 6 | commit + push to the feature branch | commit + `git push origin main` |
 | Phase 8 | `gh pr create` | no PR — report pushed commit SHAs |
 
 What does **not** change:
-- The lead still makes every commit; workers still never commit.
+- Workers commit only on their lane branches; the lead integrates and pushes.
 - Commit messages keep the same shape, scopes, and `Co-Authored-By` trailers.
-- Pull/rebase before pushing if the remote moved (`git pull --rebase origin
-  main`); a rejected push means someone else pushed — never `--force` to win.
+- If the remote moved, fetch and inspect it, then merge compatible updates
+  and reverify before pushing. Preserve reviewed lane history; never force-push
+  to overcome a rejected push.
 - Integration discipline is unchanged: smallest safe change first, real diffs,
   focused checks per step. On `main` there is no PR review to catch a mistake,
   so the acceptance checks matter more, not less.
@@ -65,49 +68,117 @@ What does **not** change:
 Record the bypass in the plan scratchpad's branch line so every worker reads
 the same thing and no worker tries to base off a branch that doesn't exist.
 
-## Commits at integration (Phase 6)
+## Lane worktrees (Phase 4)
 
-**The lead makes every commit. Workers never commit — no exceptions**, not even
-workers running in their own git worktree. Workers leave changes uncommitted in
-the working tree and report on their todo; the lead reviews the real diff and
-commits it. The worker prompt template in SKILL.md states this explicitly.
+Use a separate Git worktree for each implementation worker. From the lead
+checkout, after plan approval and any prerequisite integrations:
 
-One commit per integrated lane (or meaningful step), containing: what changed
-and *why* (from the lane's objective), tests run, and which agent/model
-produced it.
-
-Subject line: Conventional Commits with a scope — `feat(billing):`,
-`fix(ui):`, `refactor(inertia):`, `chore(rules):`, `test:`.
-
-**Attribution:** credit both the model that wrote the lane and the lead that
-integrated it, as `Co-Authored-By` trailers at the end of the message. When the
-lead wrote the lane itself, a single lead trailer is correct.
-
-Example shape:
-
-```
-feat(billing): add usage-based invoice line items
-
-Lane 2 of plan-billing-page. Adds InvoiceLineItem model + calculator
-so invoices reflect metered usage (goal: bill overages, see PR).
-Tests: php artisan test --filter=InvoiceLineItem (12 passing).
-Implemented by Kimi K3 (--auto), integrated and reviewed by lead.
-
-Co-Authored-By: Kimi K3 <noreply@moonshot.cn>
-Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+```bash
+git worktree add -b lane/<run>-<lane> <lane-path> <integration-branch>
 ```
 
-Trailers must be the last block, one per line, after a blank line. Use the
-model's real product name — the trailer is the audit trail that makes lane
-records readable from `git log` alone.
+Choose unused paths and branch names. Record the absolute path, lane branch,
+and base commit on the todo. Keep worktree directories outside tracked source
+or under an ignored `.worktrees/` directory. Workers edit and run checks only
+in their assigned checkout; the lead owns integration.
 
-Push after each integrated lane so the remote branch tracks real progress.
+Git worktrees share the repository object database. To reduce dependency disk
+usage further, compatible dependency directories can be copied into a new
+worktree with copy-on-write support. On macOS, `cp -cR` uses cloning where
+supported and falls back to copying. Both paths must be on the same supporting
+filesystem to share storage. See `man cp` and `man clonefile` on the host.
 
-After the ff-merge (or equivalent) lands on the feature branch, remove the
-lane worktree and delete the local `lane/<x>` branch. Dead worktrees accumulate
-`vendor/` and `node_modules/` and confuse the next dispatch. Keep
-`.worktrees/prompts/<lane>.md`. Do not remove a worktree while its worker is
-still running.
+Copy only dependencies matching the lane's lockfiles, platform, and runtime,
+from a source that is not being modified. Check symlinks for references back
+to the source checkout; rerun the package manager when compatibility is
+uncertain. Install only what the lane needs. Do not copy `.git` metadata or
+use hard links/shared writable dependency directories as lane isolation.
+
+## Worker commits and handoff
+
+Workers commit coherent changes on their assigned lane branch without asking
+permission for each commit. Before committing, verify the checkout and branch,
+stage explicit owned paths, and inspect the staged diff. Report unexpected
+hook-generated or out-of-scope changes. Do not bypass repository hooks.
+Workers do not push, merge, rebase, amend existing commits, change other
+branches/worktrees, or alter shared repository settings. Worktrees isolate
+checkouts, not all Git state; avoid shared stashes and repository-wide cleanup.
+
+Use scoped Conventional Commit subjects and a concise body explaining why the
+change exists and relevant validation. Credit the actual worker model with a
+`Co-Authored-By` trailer. The lead records its integration/review attribution
+on the integration commit; worker commits must not claim review that has not
+happened yet.
+
+At handoff, post the starting and final SHAs, changed files, check results,
+blockers/risks, and any remaining local files on the todo. Report ready for
+review and stop editing until reassigned. The lead alone completes todos.
+If a worker exits before handoff, inspect its recorded branch and worktree;
+recover committed and partial work without assuming it passed verification.
+
+## Integration (Phase 6)
+
+The lead owns the integration branch and serializes its updates. For each lane:
+
+1. Confirm the recorded base belongs to the lane history and the branch tip
+   matches the reported handoff SHA. Check the lane's staged, unstaged, and
+   untracked files. Require intended deliverables to be committed.
+2. Review `git diff <starting-sha> <handoff-sha>` and the lane commit history.
+   A clean plain `git diff` says nothing about committed worker changes.
+3. From the clean integration checkout, merge the exact reviewed SHA:
+
+   ```bash
+   git merge --no-ff --no-commit <handoff-sha>
+   ```
+
+   Both flags matter: `--no-commit` alone does not stop a fast-forward.
+   Preserve lane history; do not squash or cherry-pick by default.
+4. Inspect the resulting staged diff and run integration checks before the
+   merge commit. Worker tests establish the lane's starting context; verify
+   interactions with the current integration branch. Resolve straightforward
+   conflicts; return substantive fixes as a bounded worker follow-up.
+   On failure, keep the lane incomplete and unpublished; resolve or abort the
+   pending merge before integrating another lane. Never reset away user work.
+5. Commit the verified merge with the lane objective, handoff SHA, relevant
+   checks, and lead attribution. Confirm checks/hooks left no unreviewed
+   changes. Push when a remote is available. Record the integration SHA, verification,
+   and publication status on the todo, then complete it and unblock dependents.
+   A failed or unavailable push does not invalidate verified local integration;
+   preserve commits, track the pending push, and report it in the final handoff.
+   Ask only if resolving publication requires user input.
+
+Workers freeze after handoff. If a follow-up changes the lane, require a new
+SHA and updated verification; review the delta plus its effects on the earlier
+review. Merge recorded SHAs, never a branch that can move during review.
+If the reported SHA was already integrated, verify the recorded result instead
+of manufacturing another merge commit.
+
+### Cleanup after integration (Phase 7)
+
+Clean up each finished lane promptly once its changes are integrated and
+verified, its handoff is durable, and its worker and descendants have stopped.
+Check the lane's status, including untracked and ignored files, before removal;
+retain anything valuable that exists only there. Disposable lane dependencies
+and build output can be removed with the worktree.
+
+From the lead checkout, verify that the lane commit is reachable from the
+integration branch, then remove the worktree and delete its local branch:
+
+```bash
+git merge-base --is-ancestor <lane-branch> <integration-branch>
+git worktree remove <lane-path>
+git branch -d <lane-branch>
+```
+
+Run each step only if the prior check succeeds. If removal refuses, inspect
+why; do not force deletion to bypass unpreserved changes. Preserve failed or
+interrupted lanes until integrated or explicitly discarded by the user. Keep
+prompt files and durable handoffs outside the removed worktree. If dispatch
+registered a temporary Solo project solely for this lane, preserve its needed
+state in the coordination project first. Remove that registration only after
+its processes stop and its Solo-owned state is no longer needed; never delete
+the shared coordination project or a pre-existing registration. Never remove
+pre-existing user worktrees or branches as part of lane cleanup.
 
 ## The merge request (Phase 8)
 

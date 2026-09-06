@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "solo-orchestrator",
   "displayName": "Solo Orchestrator",
-  "version": "1.1.0",
-  "description": "Orchestrate multi-agent coding work through the Solo (soloterm.com) MCP server: plan into a scratchpad, split into todos with blockers, spawn cross-lab workers, monitor with idle timers, integrate one lane at a time, and ship a merge request.",
+  "version": "2.0.0",
+  "description": "Explicitly invoked Solo MCP workflow: approve a plan, route bounded coding lanes across agent CLIs, review and integrate worker commits, clean up worktrees, and prepare a pull request.",
   "author": {
     "name": "Devon Garbalosa",
     "email": "devon@metacomet.tech",
