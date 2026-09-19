@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.1.0 — 2026-09-19
+
+### Added
+
+- Optional TypeSafe decision support, gated on the `typesafe-ai` skill and
+  `TYPESAFE_API_KEY`. The lead may delegate interview sufficiency, lane splits,
+  route choice among configured candidates, idle-worker triage, acceptance
+  triage, and scope-change significance, with the state, uncertainty, cost, and
+  record rules in `references/typesafe-decisions.md`. Approvals, spending
+  authorization, billing classification, destructive actions, and verification
+  stay with the lead, and runs behave as before when either prerequisite is
+  missing.
+
 ## 2.0.0 — 2026-09-05
 
 ### Changed

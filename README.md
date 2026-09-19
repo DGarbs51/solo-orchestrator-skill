@@ -126,6 +126,13 @@ model lab is preferred for review, but a single-lab run remains supported.
 Extra charges require approval with a scope and limit; existing Codex earned
 reset credits can be redeemed automatically and are reported at completion.
 
+When the [typesafe-ai](https://docs.typesafe.ai) skill is installed and
+`TYPESAFE_API_KEY` is set, the lead may delegate bounded orchestration
+judgments — interview sufficiency, lane splits, route choice among configured
+candidates, idle-worker triage, and acceptance triage — to TypeSafe on your
+account. Approvals, spending authorization, and verification are never
+delegated, and the run behaves as documented when either is absent.
+
 The default result is a ready-for-review PR that **you merge**. Direct work on
 main requires an explicit instruction. Without a usable remote or PR client,
 the lead preserves local commits and supplies the remaining handoff.
@@ -138,6 +145,7 @@ the lead preserves local commits and supplies the remaining handoff.
 | [Git workflow](references/git-workflow.md) | Branches, worker commits, integration, cleanup, PR conventions |
 | [Worker CLIs](references/worker-clis.md) | Versioned launch settings, models, usage, permissions, MCP checks |
 | [Routing cache](references/routing-cache.md) | Cross-project model/usage observations and lane outcomes |
+| [TypeSafe decisions](references/typesafe-decisions.md) | Optional judgment support: gate, delegable decisions, limits |
 | [Flow diagrams](references/flow-diagrams.md) | Compact optional overview |
 
 The local SQLite cache lives at

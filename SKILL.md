@@ -24,6 +24,9 @@ Read references when needed, not all at startup:
   configuration, model/usage commands, and startup checks before dispatch.
 - [Routing cache](references/routing-cache.md): read before selecting models
   or refreshing usage; shared across projects on this machine.
+- [TypeSafe decisions](references/typesafe-decisions.md): optional judgment
+  support; read once when the `typesafe-ai` skill and `TYPESAFE_API_KEY` are
+  both present, before planning, routing, triage, or acceptance decisions.
 - [Flow diagrams](references/flow-diagrams.md): optional visual overview.
 
 ## 0. Orient
@@ -58,7 +61,9 @@ Reuse context already supplied. Establish the goal, acceptance checks,
 constraints/non-goals, branch/base, relevant paths, and expensive risks.
 Inspect code to resolve questions the repository can answer. Determine whether
 independent lanes justify delegation; keep tiny, dependent, or contested steps
-with the lead rather than spawning unnecessary workers.
+with the lead rather than spawning unnecessary workers. Where TypeSafe is
+available, use it for interview sufficiency and lane-split judgments under the
+TypeSafe reference; its answers inform the plan you display, not the approval.
 
 ## 2. Display the plan and wait for approval
 
@@ -113,8 +118,11 @@ Choose among configured, usable runtimes, regardless of model lab:
 | Docs/mechanical work | Efficient model with cheap acceptance checks |
 | Review/verification | Prefer another model lab; capable same-lab review is valid |
 
-Read relevant shared cache entries first. Prefer capable models covered by
-existing subscriptions with available quota before extra paid usage. Different
+Where TypeSafe is available, select among the configured candidate routes with
+a Choice judgment under the TypeSafe reference; it never widens the candidate
+set or authorizes paid usage. Read relevant shared cache entries first. Prefer
+capable models covered by existing subscriptions with available quota before
+extra paid usage. Different
 CLIs may consume the same account pool; do not count it twice. Model listings
 alone prove neither included billing nor headroom. Compare known quality,
 latency, quota pressure, and recent lane outcomes; research only unresolved
@@ -177,6 +185,9 @@ actual Solo process; never re-identify to redirect a timer. If scheduling says
 `already_satisfied`, inspect now; no future wake-up was scheduled. Exclude
 already-reviewed idle workers when rearming. Idle can mean an approval prompt,
 a failure, or completion: inspect real output and the handoff before deciding.
+Where TypeSafe is available, triage the captured output under the TypeSafe
+reference to choose which inspection to run first; it does not replace reading
+the real output.
 Cancel run timers when done. If Solo identity, connectivity, or timer delivery
 fails mid-run, stop new dispatch and preserve the run state and lane handoffs.
 Pause affected workers when reachable; if they cannot be reached, explicitly
@@ -205,9 +216,11 @@ Follow the Git reference one ready lane at a time. Freeze and review the
 reported SHA from its recorded base, inspect remaining files, merge that exact
 SHA with lane history preserved, and verify the combined result before pushing.
 Resolve straightforward conflicts; return substantive fixes to the worker with
-a bounded follow-up and require a new handoff SHA. Significant scope changes
-return to the approval step. Reuse applicable worker tests while checking
-interactions and assumptions changed by integration.
+a bounded follow-up and require a new handoff SHA. Where TypeSafe is available,
+use it to rank acceptance-check coverage and to separate mechanical from
+substantive rework under the TypeSafe reference; the lead still runs the checks.
+Significant scope changes return to the approval step. Reuse applicable worker
+tests while checking interactions and assumptions changed by integration.
 
 Record acceptance, integration SHA, and checks; then complete the todo and
 unblock dependents. Notify only workers affected by integrated changes. Store
